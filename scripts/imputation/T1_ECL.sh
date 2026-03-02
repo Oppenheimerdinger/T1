@@ -18,7 +18,7 @@ python -u run.py \
   --enc_in 321 \
   --dec_in 321 \
   --c_out 321 \
-  --n_heads 256 \
+  --n_heads 128 \
   --patch_size 2 \
   --patch_stride 1 \
   --n_blocks 2 2 \
