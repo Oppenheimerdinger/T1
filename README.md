@@ -13,10 +13,10 @@ T1 introduces **Channel-Head Binding** — a mechanism creating one-to-one corre
 
 ## Key Features
 
-- Channel-Head Binding architecture combining CNN and Attention
-- Multi-scale large kernel convolutions for temporal pattern capture
-- Efficient SDPA-based attention (PyTorch 2.0+ native)
-- Support for 11 benchmark datasets (8 standard + 3 extended)
+- **Channel-Head Binding (CHead Attention):** One-to-one correspondence between CNN channels and attention heads, enabling feature-specific cross-variable information transfer
+- **Temporal Convolutional Q, K, V Projection:** Shared depthwise convolutions with multi-scale large kernels for robust temporal feature extraction
+- **Mask-Aware Embedding:** Explicitly encodes missing value locations for imputation-aware representation
+- 46% average MSE reduction over the second-best baseline across 11 benchmarks
 
 ## Getting Started
 
