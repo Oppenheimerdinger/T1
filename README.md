@@ -7,6 +7,10 @@ This is the official implementation of **T1**, accepted at **ICLR 2026**.
 
 T1 introduces **Channel-Head Binding** — a mechanism creating one-to-one correspondence between CNN channels and attention heads — enabling selective information transfer that adapts based on observable patterns, down-weighting corrupted channels while maintaining reliable cross-variable connections.
 
+<p align="center">
+  <img src="fig_architecture.png" width="90%">
+</p>
+
 ## Key Features
 
 - Channel-Head Binding architecture combining CNN and Attention
