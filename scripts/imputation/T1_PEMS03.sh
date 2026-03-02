@@ -1,0 +1,33 @@
+export CUDA_VISIBLE_DEVICES=0
+
+model_name=T1
+
+python -u run.py \
+  --task_name imputation \
+  --is_training 1 \
+  --model_id PEMS03 \
+  --model $model_name \
+  --data PEMS03 \
+  --root_path ./dataset/benchpots/ \
+  --features M \
+  --seq_len 96 \
+  --label_len 0 \
+  --pred_len 96 \
+  --enc_in 358 \
+  --dec_in 358 \
+  --c_out 358 \
+  --n_heads 256 \
+  --patch_size 2 \
+  --patch_stride 1 \
+  --n_blocks 2 2 \
+  --kernel_size_large 71 31 \
+  --kernel_size_small 5 \
+  --ffn_ratio 1.0 \
+  --mask_rate 0.2 \
+  --train_epochs 300 \
+  --patience 30 \
+  --batch_size 16 \
+  --learning_rate 0.001 \
+  --lradj type3 \
+  --precision bf16 \
+  --data_source benchpots
