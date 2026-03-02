@@ -23,6 +23,8 @@ python -u run.py \
   --kernel_size_large 35 15 \
   --kernel_size_small 5 \
   --ffn_ratio 1.0 \
+  --drop_attn 0.1 \
+  --drop_path 0.1 \
   --mask_rate 0.2 \
   --train_epochs 300 \
   --patience 30 \

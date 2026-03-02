@@ -8,7 +8,8 @@ python -u run.py \
   --model_id PEMS03 \
   --model $model_name \
   --data PEMS03 \
-  --root_path ./dataset/benchpots/ \
+  --root_path ./dataset/TimeSeries/ \
+  --data_path PEMS03.npz \
   --features M \
   --seq_len 96 \
   --label_len 0 \
@@ -23,7 +24,9 @@ python -u run.py \
   --kernel_size_large 71 31 \
   --kernel_size_small 5 \
   --ffn_ratio 1.0 \
-  --mask_rate 0.2 \
+  --drop_attn 0.1 \
+  --drop_path 0.1 \
+  --mask_rate 0.4 \
   --train_epochs 300 \
   --patience 30 \
   --batch_size 16 \

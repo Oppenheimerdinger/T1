@@ -10,9 +10,9 @@ python -u run.py \
   --data PM25 \
   --root_path ./dataset/pm25/ \
   --features M \
-  --seq_len 36 \
+  --seq_len 96 \
   --label_len 0 \
-  --pred_len 36 \
+  --pred_len 96 \
   --enc_in 36 \
   --dec_in 36 \
   --c_out 36 \
@@ -23,7 +23,11 @@ python -u run.py \
   --kernel_size_large 71 31 \
   --kernel_size_small 5 \
   --ffn_ratio 1.0 \
-  --mask_rate 0.2 \
+  --drop_attn 0.1 \
+  --drop_path 0.1 \
+  --mask_rate 0.0 \
+  --ORT_weight 1.0 \
+  --base_loss MAE \
   --train_epochs 300 \
   --patience 30 \
   --batch_size 32 \

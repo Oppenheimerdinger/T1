@@ -25,6 +25,8 @@ python -u run.py \
   --kernel_size_large 71 31 \
   --kernel_size_small 5 \
   --ffn_ratio 1.0 \
+  --drop_attn 0.1 \
+  --drop_path 0.1 \
   --mask_rate $mask_rate \
   --train_epochs 300 \
   --patience 30 \

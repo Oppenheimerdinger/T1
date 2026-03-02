@@ -20,6 +20,9 @@ def data_provider(args, flag):
     if data_source == 'tslib':
         return _tslib_provider(args, flag)
     elif data_source == 'benchpots':
+        # PEMS03 uses custom wrapper (benchpots has no preprocess_pems03)
+        if args.data.upper() == 'PEMS03':
+            return _pems03_provider(args, flag)
         return _benchpots_provider(args, flag)
     elif data_source == 'csdi':
         return _csdi_provider(args, flag)
@@ -64,6 +67,29 @@ def _benchpots_provider(args, flag):
         dataset_name=args.data.lower(),
         subset=subset_map[flag],
         root_path=args.root_path,
+        mit_rate=args.mask_rate,
+    )
+
+    shuffle_flag = flag == 'train'
+    data_loader = DataLoader(
+        data_set,
+        batch_size=args.batch_size,
+        shuffle=shuffle_flag,
+        num_workers=args.num_workers,
+        drop_last=False,
+    )
+    return data_set, data_loader
+
+
+def _pems03_provider(args, flag):
+    from data_provider.data_loader_pypots import PEMS03Wrapper
+
+    subset_map = {'train': 'train', 'val': 'val', 'test': 'test'}
+    data_set = PEMS03Wrapper(
+        subset=subset_map[flag],
+        root_path=args.root_path,
+        data_path=getattr(args, 'data_path', 'PEMS03.npz'),
+        n_steps=args.seq_len,
         mit_rate=args.mask_rate,
     )
 

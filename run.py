@@ -104,6 +104,12 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', type=float, default=0.001, help='optimizer learning rate')
     parser.add_argument('--des', type=str, default='Exp', help='exp description')
     parser.add_argument('--loss', type=str, default='MSE', help='loss function')
+    parser.add_argument('--ORT_weight', type=float, default=0.0,
+                        help='ORT (observed reconstruction task) loss weight')
+    parser.add_argument('--MIT_weight', type=float, default=1.0,
+                        help='MIT (masked imputation task) loss weight')
+    parser.add_argument('--base_loss', type=str, default='MSE', choices=['MSE', 'MAE'],
+                        help='base loss function for imputation (MSE or MAE)')
     parser.add_argument('--lradj', type=str, default='type3', help='adjust learning rate')
     parser.add_argument('--use_amp', action='store_true', help='use automatic mixed precision', default=False)
     parser.add_argument('--precision', type=str, default='bf16', choices=['fp32', 'fp16', 'bf16'],

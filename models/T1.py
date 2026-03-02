@@ -625,13 +625,32 @@ class Model(nn.Module):
 
     def _normalize_input(self, x, mask=None, task_type='standard'):
         if task_type == 'imputation' and mask is not None:
-            mean_enc = torch.sum(x, dim=1) / torch.sum(mask == 1, dim=1)
-            mean_enc = mean_enc.unsqueeze(1).detach()
-            x_centered = x - mean_enc
-            x_centered = x_centered.masked_fill(mask == 0, 0)
-            std_enc = torch.sqrt(torch.sum(x_centered * x_centered, dim=1) / torch.sum(mask == 1, dim=1) + 1e-5)
-            std_enc = std_enc.unsqueeze(1).detach()
-            x_norm = x_centered / std_enc
+            n_observed = torch.sum(mask == 1, dim=1, keepdim=True)  # [B, 1, M]
+
+            is_zero_obs = (n_observed == 0)
+            is_one_obs = (n_observed == 1)
+            is_normal = ~(is_zero_obs | is_one_obs)
+
+            mean_enc = torch.zeros_like(n_observed, dtype=x.dtype)
+            std_enc = torch.ones_like(n_observed, dtype=x.dtype)
+
+            if is_one_obs.any():
+                mean_one = torch.sum(x * mask, dim=1, keepdim=True)
+                mean_enc = torch.where(is_one_obs, mean_one, mean_enc)
+
+            if is_normal.any():
+                safe_n = torch.where(is_normal, n_observed, torch.ones_like(n_observed))
+                mean_normal = torch.sum(x * mask, dim=1, keepdim=True) / safe_n
+                mean_enc = torch.where(is_normal, mean_normal, mean_enc)
+
+                x_centered = (x - mean_enc) * mask
+                variance = torch.sum(x_centered * x_centered, dim=1, keepdim=True) / torch.maximum(safe_n - 1, torch.ones_like(safe_n))
+                std_normal = torch.sqrt(variance + 1e-5)
+                std_enc = torch.where(is_normal, std_normal, std_enc)
+
+            mean_enc = mean_enc.detach()
+            std_enc = std_enc.detach()
+            x_norm = (x - mean_enc) * mask / std_enc
         else:
             mean_enc = x.mean(1, keepdim=True).detach()
             x_centered = x - mean_enc

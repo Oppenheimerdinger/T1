@@ -45,8 +45,10 @@ class Exp_Imputation(Exp_Basic):
         return model_optim
 
     def _select_criterion(self):
-        criterion = nn.MSELoss()
-        return criterion
+        base_loss = getattr(self.args, 'base_loss', 'MSE')
+        if base_loss == 'MAE':
+            return nn.L1Loss()
+        return nn.MSELoss()
 
     def vali(self, vali_data, vali_loader, criterion):
         total_loss = []
@@ -88,7 +90,14 @@ class Exp_Imputation(Exp_Basic):
                     if batch_indicating.sum() > 0:
                         eval_mask = batch_indicating
 
-                    loss = criterion(outputs.detach()[eval_mask == 1], batch_x_ori.detach()[eval_mask == 1])
+                    ORT_weight = getattr(self.args, 'ORT_weight', 0.0)
+                    MIT_weight = getattr(self.args, 'MIT_weight', 1.0)
+                    MIT_loss = criterion(outputs.detach()[eval_mask == 1], batch_x_ori.detach()[eval_mask == 1])
+                    if ORT_weight > 0 and batch_mask.sum() > 0:
+                        ORT_loss = criterion(outputs.detach()[batch_mask == 1], batch_x_ori.detach()[batch_mask == 1])
+                        loss = MIT_weight * MIT_loss + ORT_weight * ORT_loss
+                    else:
+                        loss = MIT_loss
                     total_loss.append(loss.item())
 
         total_loss = np.average(total_loss)
@@ -166,7 +175,17 @@ class Exp_Imputation(Exp_Basic):
 
                     with self._autocast_ctx():
                         outputs = self.model(batch_x, batch_x_mark, None, None, batch_mask)
-                        loss = criterion(outputs[batch_indicating == 1], batch_x_ori[batch_indicating == 1])
+                        ORT_weight = getattr(self.args, 'ORT_weight', 0.0)
+                        MIT_weight = getattr(self.args, 'MIT_weight', 1.0)
+                        if batch_indicating.sum() > 0:
+                            MIT_loss = criterion(outputs[batch_indicating == 1], batch_x_ori[batch_indicating == 1])
+                        else:
+                            MIT_loss = criterion(outputs[batch_mask == 0], batch_x_ori[batch_mask == 0])
+                        if ORT_weight > 0 and batch_mask.sum() > 0:
+                            ORT_loss = criterion(outputs[batch_mask == 1], batch_x_ori[batch_mask == 1])
+                            loss = MIT_weight * MIT_loss + ORT_weight * ORT_loss
+                        else:
+                            loss = MIT_loss
 
                     train_loss.append(loss.item())
 

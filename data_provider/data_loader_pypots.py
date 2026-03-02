@@ -7,6 +7,7 @@ import os
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+from sklearn.preprocessing import StandardScaler
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -60,6 +61,7 @@ class BenchPOTSWrapper(Dataset):
             self.X_ori = self.X.clone()
 
         self.original_missing_mask = (~torch.isnan(self.X)).float()
+        self.X_ori_mask = (~torch.isnan(self.X_ori)).float()
         self.X = torch.nan_to_num(self.X, nan=0.0)
         self.X_ori = torch.nan_to_num(self.X_ori, nan=0.0)
 
@@ -97,7 +99,8 @@ class BenchPOTSWrapper(Dataset):
         else:
             X_mit = X_sample
             mit_mask = original_mask
-            indicating_mask = torch.zeros_like(original_mask)
+            X_ori_mask = self.X_ori_mask[index]
+            indicating_mask = (X_ori_mask - original_mask).clamp(min=0)
 
         seq_x_mark = torch.zeros(self.n_steps, 4)
         seq_y_mark = torch.zeros(self.n_steps, 4)
@@ -195,3 +198,104 @@ class PM25Wrapper(Dataset):
 
     def __len__(self):
         return self.n_samples
+
+
+class PEMS03Wrapper(Dataset):
+    """
+    Wrapper for PEMS03 dataset using direct npz loading (no benchpots dependency).
+    Replicates T1-master's _load_pems03_data logic:
+      load npz -> reshape(samples, nodes*features) -> StandardScaler -> sliding windows -> 70/10/20 split
+    Returns (X_mit, X_ori, mit_mask, indicating_mask, x_mark, y_mark) tuples.
+    """
+
+    def __init__(self, subset='train', root_path='../dataset/TimeSeries/',
+                 data_path='PEMS03.npz', n_steps=96, mit_rate=0.2, **kwargs):
+        super().__init__()
+        self.subset = subset
+        self.root_path = root_path
+        self.data_path = data_path
+        self.n_steps = n_steps
+        self.mit_rate = mit_rate
+        self._load_data()
+
+    def _load_data(self):
+        file_name = os.path.basename(self.data_path)
+        full_path = os.path.join(self.root_path, 'PEMS', file_name)
+
+        if not os.path.exists(full_path):
+            full_path = os.path.join(self.root_path, file_name)
+        if not os.path.exists(full_path):
+            raise FileNotFoundError(
+                f"PEMS03 dataset not found. Tried: "
+                f"{os.path.join(self.root_path, 'PEMS', file_name)} and {full_path}"
+            )
+
+        print(f"Loading PEMS03 from {full_path} ...")
+
+        data_file = np.load(full_path)
+        data = data_file['data']  # (num_samples, num_nodes, num_features)
+        n_samples, n_nodes, n_features = data.shape
+        data = data.reshape(n_samples, n_nodes * n_features)
+
+        # Standardize
+        scaler = StandardScaler()
+        data = scaler.fit_transform(data)
+
+        # Sliding windows -> (N - n_steps + 1, n_steps, n_nodes*n_features)
+        n_windows = len(data) - self.n_steps + 1
+        X = np.array([data[i:i + self.n_steps] for i in range(n_windows)])
+
+        # 70/10/20 split (traditional)
+        n_total = len(X)
+        train_end = int(n_total * 0.7)
+        val_end = int(n_total * 0.8)
+
+        splits = {'train': X[:train_end], 'val': X[train_end:val_end], 'test': X[val_end:]}
+        subset_data = splits[self.subset]
+
+        # No natural missing values in PEMS03 — all observed
+        self.X_ori = torch.FloatTensor(subset_data)
+        self.original_missing_mask = torch.ones_like(self.X_ori)
+        self.X = self.X_ori.clone()
+
+        self.n_samples_total, self.n_steps_actual, self.n_features_actual = self.X.shape
+        print(f"  PEMS03 {self.subset}: shape={self.X.shape}")
+
+    def _generate_mit_mask(self, X, original_mask):
+        observed_indices = original_mask.bool()
+        n_observed = observed_indices.sum()
+        n_to_mask = int(n_observed * self.mit_rate)
+
+        if n_to_mask > 0:
+            observed_flat = torch.where(observed_indices.flatten())[0]
+            mask_indices = observed_flat[torch.randperm(len(observed_flat))[:n_to_mask]]
+            indicating_mask = torch.zeros_like(X).flatten()
+            indicating_mask[mask_indices] = 1
+            indicating_mask = indicating_mask.reshape(X.shape)
+            mit_mask = original_mask - indicating_mask
+        else:
+            indicating_mask = torch.zeros_like(X)
+            mit_mask = original_mask
+
+        return mit_mask, indicating_mask
+
+    def __getitem__(self, index):
+        X_ori_sample = self.X_ori[index]
+        original_mask = self.original_missing_mask[index]
+
+        if self.subset == 'train':
+            mit_mask, indicating_mask = self._generate_mit_mask(X_ori_sample, original_mask)
+            X_mit = X_ori_sample.clone()
+            X_mit[indicating_mask.bool()] = 0
+        else:
+            mit_mask, indicating_mask = self._generate_mit_mask(X_ori_sample, original_mask)
+            X_mit = X_ori_sample.clone()
+            X_mit[indicating_mask.bool()] = 0
+
+        seq_x_mark = torch.zeros(self.n_steps_actual, 4)
+        seq_y_mark = torch.zeros(self.n_steps_actual, 4)
+
+        return X_mit, X_ori_sample, mit_mask, indicating_mask, seq_x_mark, seq_y_mark
+
+    def __len__(self):
+        return self.n_samples_total
